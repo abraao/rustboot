@@ -1,24 +1,43 @@
+; loader.asm will be used to set up the boot image
+
+; The direct "use16" specifies that NASM should generate code designed to run on a processor operating in 16-bit mode.
+; It's used in place of "bits 16" for compatibility with other assemblers.
+; See http://www.nasm.us/doc/nasmdoc6.html#section-6.1.1
 use16
 
+; The directive "org" stands for "origin", and specifies where NASM will look for the program
+; when it loads the program into memory.
+; See http://www.nasm.us/doc/nasmdoc7.html#section-7.1.1
+; Why the value 0x7c00? That's where BIOS interrupt 19h typically loads the boot record.
+; See http://wiki.osdev.org/Boot_Sequence#Master_Boot_Record and
+; http://en.wikipedia.org/wiki/BIOS_interrupt_call
+; For more details on the origin of this value, see http://www.glamenv-septzen.net/en/view/6
 org 0x7c00
 
+; This is a label. It's an easy way to point to the first instruction after the label
+; See http://www.nasm.us/doc/nasmdoc3.html and http://stackoverflow.com/questions/14927277/what-is-label-address
 boot:
     ; initialize segment registers
-    xor ax, ax
-    mov ds, ax
+    xor ax, ax ; Common idiom to set register to 0. See http://stackoverflow.com/questions/8201676/xor-register-register-assembler
+    mov ds, ax ; This register and the one below are also being set to 0
     mov es, ax
     mov ss, ax
     ; initialize stack
     mov ax, 0x7bff
     mov sp, ax
     ; load rust code into 0x7e00 so we can jump to it later
+	; The address 0x7e00 is the next one after the stack pointer 0x7bff
+	; The below ("ah", etc) are general purpose registers. See http://en.wikipedia.org/wiki/X86#x86_registers
     mov ah, 2       ; read
     mov al, 24      ; 24 sectors (12 KiB)
     mov ch, 0       ; cylinder & 0xff
     mov cl, 2       ; sector | ((cylinder >> 2) & 0xc0)
     mov dh, 0       ; head
     mov bx, 0x7e00  ; read buffer
-    int 0x13
+    ; BIOS interrupt 13 is used for disk services. When ah is set to 2, it tells the BIOS to read the data
+	; See http://en.wikipedia.org/wiki/BIOS_interrupt_call
+	; and http://en.wikipedia.org/wiki/INT_13H#INT_13h_AH.3D02h:_Read_Sectors_From_Drive
+	int 0x13
     jc error
     ; load protected mode GDT and a null IDT (we don't need interrupts)
     cli
