@@ -38,12 +38,23 @@ boot:
 	; See http://en.wikipedia.org/wiki/BIOS_interrupt_call
 	; and http://en.wikipedia.org/wiki/INT_13H#INT_13h_AH.3D02h:_Read_Sectors_From_Drive
 	int 0x13
+	; jc stands for "Jump if carry". The carry flag is a single bit and is
+	;  either on or off (i.e. true or false). After using interrupt 13, the
+	;  carry flag is set if there's an error, or clear if successful.
     jc error
     ; load protected mode GDT and a null IDT (we don't need interrupts)
+    ;; The cli instruction clears the interrupt flag and disables interrupts.
+    ;;  http://www.posix.nl/linuxassembly/nasmdochtml/nasmdoca.html#section-A.15
     cli
+    ;; http://www.posix.nl/linuxassembly/nasmdochtml/nasmdoca.html#section-A.95
     lgdt [gdtr]
     lidt [idtr]
     ; set protected mode bit of cr0
+    ;; The bits of control register cr0 can be manipulated to modify the
+    ;;  operation of the processor. In this case, the value cr0 is copied to
+    ;;  general purpose register eax, bit 1 is set to enable protected mode,
+    ;;  and then this value is copied to cr0.
+    ;;  http://en.wikipedia.org/wiki/Control_register#CR0
     mov eax, cr0
     or eax, 1
     mov cr0, eax
